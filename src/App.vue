@@ -28,6 +28,10 @@
             width="200"
             height="200"
           />
+
+          <div class="mt-2">
+            <button class="btn btn-success" @click="predictImage()">Predict Image</button>
+          </div>
         </div>
       </div>
     </div>
@@ -36,6 +40,8 @@
 
 <script>
 import "bootstrap/dist/css/bootstrap.css";
+import axios from "axios";
+
 export default {
   name: "app",
   data() {
@@ -43,7 +49,9 @@ export default {
       videoSources: [],
       selectedSource: null,
       imageURL: null,
-      uploadingImage: false
+      uploadingImage: false,
+      gCloudVisionUrl:
+        "https://vision.googleapis.com/v1/images:annotate?key=AIzaSyCk-S9i5xMbmiEAIVPtSC8VlyecH1rY8Uo"
     };
   },
   mounted() {
@@ -106,11 +114,52 @@ export default {
 
       let imgElement = this.$refs.usercapture;
 
-      // Other browsers will fall back to image/png
+      // Get image
       let image = canvas.toDataURL("image/png");
       console.log(image);
-      this.imageURL = image;
+
+      //Trim signature to get pure image data
+      this.imageURL = image.replace(/^data:image\/(png|jpg);base64,/, "");
+
+      //Set the image element to the data url
       imgElement.src = image;
+    },
+    async predictImage() {
+      let requestBody = {
+        requests: [
+          {
+            image: {
+              content: this.imageURL
+            },
+            features: [
+              {
+                type: "LABEL_DETECTION",
+                maxResults: 1
+              }
+            ]
+          }
+        ]
+      };
+      try {
+        let predictionResults = await axios.post(
+          this.gCloudVisionUrl,
+          requestBody
+        );
+
+        let predictionResponse = predictionResults.data.responses[0]; //As we only asked for one response
+
+        console.log(predictionResponse);
+
+        let annotations = predictionResponse.labelAnnotations;
+
+        let allLabelDescriptions = annotations.map(
+          annotation => annotation.description
+        );
+
+        console.log(allLabelDescriptions);
+      } catch (error) {
+        console.log(error);
+      }
     }
   }
 };
