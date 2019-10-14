@@ -20,7 +20,15 @@
             <button class="btn btn-primary" @click="captureImage()">Capture Image</button>
           </div>
         </div>
-        <div class="col-md-6"></div>
+        <div class="col-md-6">
+          <img
+            id="usercapture"
+            ref="usercapture"
+            src="http://via.placeholder.com/150x150"
+            width="200"
+            height="200"
+          />
+        </div>
       </div>
     </div>
   </div>
