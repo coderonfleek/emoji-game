@@ -10,27 +10,45 @@
               :value="source.id"
             >{{source.text}}</option>
           </select>
+        </div>
+        <div class="col-md-6">Timer Here</div>
+      </div>
 
-          <div class="mt-4">
+      <div class="row mt-5">
+        <div class="col-md-6">
+          <button class="btn btn-success" @click="playGame()">Play</button>
+        </div>
+      </div>
+      <!-- row -->
+      <div class="row mt-5">
+        <div class="col-md-6">
+          <div>
             <video autoplay id="video1" ref="video1"></video>
             <canvas style="display:none;" id="canvas1" ref="canvas1"></canvas>
           </div>
 
-          <div class="mt-3">
+          <div>
             <button class="btn btn-primary" @click="captureImage()">Capture Image</button>
           </div>
         </div>
         <div class="col-md-6">
-          <img
-            id="usercapture"
-            ref="usercapture"
-            src="http://via.placeholder.com/150x150"
-            width="200"
-            height="200"
-          />
+          <div class="row">
+            <div class="col-md-6">
+              <img
+                id="usercapture"
+                ref="usercapture"
+                src="http://via.placeholder.com/150x150"
+                width="200"
+                height="200"
+              />
 
-          <div class="mt-2">
-            <button class="btn btn-success" @click="predictImage()">Predict Image</button>
+              <div class="mt-2">
+                <button class="btn btn-success" @click="predictImage()">Predict Image</button>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <p class="currentEmoji">{{currentEmoji.char}}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -41,6 +59,7 @@
 <script>
 import "bootstrap/dist/css/bootstrap.css";
 import axios from "axios";
+import emojis from "emoji.json";
 
 export default {
   name: "app",
@@ -48,6 +67,7 @@ export default {
     return {
       videoSources: [],
       selectedSource: null,
+      currentEmoji: {},
       imageURL: null,
       uploadingImage: false,
       gCloudVisionUrl:
@@ -55,10 +75,18 @@ export default {
     };
   },
   mounted() {
+    console.log(this.gameEmojis);
     navigator.mediaDevices
       .enumerateDevices()
       .then(this.gotDevices)
       .catch(this.handleError);
+  },
+  computed: {
+    gameEmojis() {
+      return emojis.filter(emoji => {
+        return emoji.category.includes("Objects");
+      });
+    }
   },
   methods: {
     gotDevices(deviceInfos) {
@@ -105,6 +133,12 @@ export default {
     handleError(error) {
       console.error("Error: ", error);
     },
+    playGame() {
+      //Get Random Emoji
+      let emojiIndex = this.getRandomInt(0, this.gameEmojis.length);
+      this.currentEmoji = this.gameEmojis[emojiIndex];
+      console.log(this.currentEmoji);
+    },
     captureImage() {
       let canvas = this.$refs.canvas1;
       let videoElement = this.$refs.video1;
@@ -134,7 +168,7 @@ export default {
             features: [
               {
                 type: "LABEL_DETECTION",
-                maxResults: 1
+                maxResults: 10
               }
             ]
           }
@@ -146,20 +180,43 @@ export default {
           requestBody
         );
 
-        let predictionResponse = predictionResults.data.responses[0]; //As we only asked for one response
+        let predictionResponse = predictionResults.data.responses[0];
 
         console.log(predictionResponse);
 
         let annotations = predictionResponse.labelAnnotations;
 
-        let allLabelDescriptions = annotations.map(
-          annotation => annotation.description
+        let allLabelDescriptions = annotations.map(annotation =>
+          annotation.description.toLowerCase()
         );
 
         console.log(allLabelDescriptions);
+
+        //Check if any of the prediction labels match the current emoji
+
+        let match = false;
+
+        allLabelDescriptions.forEach(description => {
+          if (this.currentEmoji.name.includes(description)) {
+            match = true;
+          }
+        });
+
+        console.log(this.currentEmoji);
+
+        if (match == true) {
+          console.log("Correct Answer");
+        } else {
+          console.log("Wrong Answer");
+        }
       } catch (error) {
         console.log(error);
       }
+    },
+    getRandomInt(min, max) {
+      min = Math.ceil(min);
+      max = Math.floor(max);
+      return Math.floor(Math.random() * (max - min + 1)) + min;
     }
   }
 };
@@ -170,5 +227,9 @@ export default {
   width: 500px;
   height: 400px;
   background-color: grey;
+}
+
+.currentEmoji {
+  font-size: 120px;
 }
 </style>
