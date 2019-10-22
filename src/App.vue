@@ -22,9 +22,13 @@
 
       <div class="row mt-5">
         <div class="col-md-6">
-          <button class="btn btn-success" @click="playGame()">Play</button>
+          <button class="btn btn-success" @click="playGame()" :disabled="inPlay">Play</button>
           &nbsp;
-          <button class="btn btn-warning" @click="skipEmoji()">Skip Emoji</button>
+          <button
+            class="btn btn-warning"
+            @click="skipEmoji()"
+            :disabled="!inPlay"
+          >Skip Emoji</button>
         </div>
       </div>
       <!-- row -->
@@ -84,7 +88,8 @@ export default {
       timerHandle: null,
       timerStart: 30,
       pointsIncrement: 10,
-      pointsDecrement: 5
+      pointsDecrement: 5,
+      inPlay: false
     };
   },
   mounted() {
@@ -152,6 +157,9 @@ export default {
     playGame() {
       //Get Random Emoji
       this.switchEmoji();
+
+      //Set game in play
+      this.inPlay = true;
 
       //Start timer countdown
       this.setTimer();
@@ -225,17 +233,7 @@ export default {
             }
           });
 
-          console.log(this.currentEmoji);
-
-          if (match == true) {
-            this.totalScore += this.pointsIncrement;
-
-            this.resetTimer();
-
-            alert("Correct Answer");
-          } else {
-            alert("Wrong Answer");
-          }
+          this.setScore(match);
         } catch (error) {
           console.log(error);
         }
@@ -258,8 +256,8 @@ export default {
         } else {
           clearInterval(this.timerHandle);
 
-          //Game Over
-          console.log("Game Over");
+          //End game
+          this.endGame();
         }
       }, 1000);
     },
@@ -267,6 +265,30 @@ export default {
       //Stop the Clock
       clearInterval(this.timerHandle);
       this.timerStart = 30;
+    },
+    setScore(match) {
+      if (match) {
+        this.totalScore += this.pointsIncrement;
+
+        this.resetTimer();
+
+        this.displayMessage("Wrong Answer", "success");
+      } else {
+        this.totalScore -= this.pointsDecrement;
+        if (this.totalScore < 0) {
+          //End game
+          this.endGame();
+        }
+        this.displayMessage("Wrong Answer", "danger");
+      }
+
+      this.inPlay = false;
+    },
+    endGame() {
+      console.log("Game Over");
+    },
+    displayMessage(message, type) {
+      console.log(message);
     },
     getRandomInt(min, max) {
       min = Math.ceil(min);
