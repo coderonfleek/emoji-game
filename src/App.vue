@@ -2,7 +2,7 @@
   <div id="app">
     <div class="container">
       <div class="row">
-        <div class="col-md-6">
+        <div class="col-md-4">
           <select class="form-control" v-model="selectedSource" @change="getStream()">
             <option
               v-for="source in videoSources"
@@ -11,12 +11,20 @@
             >{{source.text}}</option>
           </select>
         </div>
-        <div class="col-md-6">Timer Here</div>
+        <div class="col-md-8">
+          <div class="row">
+            <div class="col-md-4">Countdown : {{timerStart}}</div>
+            <div class="col-md-4">Total Score: {{totalScore}}</div>
+            <div class="col-md-4">Fikayo Adepoju</div>
+          </div>
+        </div>
       </div>
 
       <div class="row mt-5">
         <div class="col-md-6">
           <button class="btn btn-success" @click="playGame()">Play</button>
+          &nbsp;
+          <button class="btn btn-warning" @click="skipEmoji()">Skip Emoji</button>
         </div>
       </div>
       <!-- row -->
@@ -67,11 +75,16 @@ export default {
     return {
       videoSources: [],
       selectedSource: null,
+      totalScore: 0,
       currentEmoji: {},
       imageURL: null,
       uploadingImage: false,
       gCloudVisionUrl:
-        "https://vision.googleapis.com/v1/images:annotate?key=AIzaSyCk-S9i5xMbmiEAIVPtSC8VlyecH1rY8Uo"
+        "https://vision.googleapis.com/v1/images:annotate?key=AIzaSyCk-S9i5xMbmiEAIVPtSC8VlyecH1rY8Uo",
+      timerHandle: null,
+      timerStart: 30,
+      pointsIncrement: 10,
+      pointsDecrement: 5
     };
   },
   mounted() {
@@ -84,7 +97,10 @@ export default {
   computed: {
     gameEmojis() {
       return emojis.filter(emoji => {
-        return emoji.category.includes("Objects");
+        return (
+          emoji.category.includes("Objects") &&
+          emoji.char.charCodeAt(0) != 55358
+        );
       });
     }
   },
@@ -135,9 +151,15 @@ export default {
     },
     playGame() {
       //Get Random Emoji
-      let emojiIndex = this.getRandomInt(0, this.gameEmojis.length);
-      this.currentEmoji = this.gameEmojis[emojiIndex];
-      console.log(this.currentEmoji);
+      this.switchEmoji();
+
+      //Start timer countdown
+      this.setTimer();
+    },
+    skipEmoji() {
+      this.switchEmoji();
+
+      this.imageURL = null;
     },
     captureImage() {
       let canvas = this.$refs.canvas1;
@@ -159,59 +181,92 @@ export default {
       imgElement.src = image;
     },
     async predictImage() {
-      let requestBody = {
-        requests: [
-          {
-            image: {
-              content: this.imageURL
-            },
-            features: [
-              {
-                type: "LABEL_DETECTION",
-                maxResults: 10
-              }
-            ]
+      if (this.imageURL) {
+        let requestBody = {
+          requests: [
+            {
+              image: {
+                content: this.imageURL
+              },
+              features: [
+                {
+                  type: "LABEL_DETECTION",
+                  maxResults: 10
+                }
+              ]
+            }
+          ]
+        };
+        try {
+          let predictionResults = await axios.post(
+            this.gCloudVisionUrl,
+            requestBody
+          );
+
+          let predictionResponse = predictionResults.data.responses[0];
+
+          console.log(predictionResponse);
+
+          let annotations = predictionResponse.labelAnnotations;
+
+          let allLabelDescriptions = annotations.map(annotation =>
+            annotation.description.toLowerCase()
+          );
+
+          console.log(allLabelDescriptions);
+
+          //Check if any of the prediction labels match the current emoji
+
+          let match = false;
+
+          allLabelDescriptions.forEach(description => {
+            if (this.currentEmoji.name.includes(description)) {
+              match = true;
+            }
+          });
+
+          console.log(this.currentEmoji);
+
+          if (match == true) {
+            this.totalScore += this.pointsIncrement;
+
+            this.resetTimer();
+
+            alert("Correct Answer");
+          } else {
+            alert("Wrong Answer");
           }
-        ]
-      };
-      try {
-        let predictionResults = await axios.post(
-          this.gCloudVisionUrl,
-          requestBody
-        );
-
-        let predictionResponse = predictionResults.data.responses[0];
-
-        console.log(predictionResponse);
-
-        let annotations = predictionResponse.labelAnnotations;
-
-        let allLabelDescriptions = annotations.map(annotation =>
-          annotation.description.toLowerCase()
-        );
-
-        console.log(allLabelDescriptions);
-
-        //Check if any of the prediction labels match the current emoji
-
-        let match = false;
-
-        allLabelDescriptions.forEach(description => {
-          if (this.currentEmoji.name.includes(description)) {
-            match = true;
-          }
-        });
-
-        console.log(this.currentEmoji);
-
-        if (match == true) {
-          console.log("Correct Answer");
-        } else {
-          console.log("Wrong Answer");
+        } catch (error) {
+          console.log(error);
         }
-      } catch (error) {
-        console.log(error);
+      } else {
+        alert("You are yet to capture an image");
       }
+    },
+    switchEmoji() {
+      let emojiIndex = this.getRandomInt(0, this.gameEmojis.length);
+      this.currentEmoji = this.gameEmojis[emojiIndex];
+      console.log(this.currentEmoji);
+    },
+    setTimer() {
+      clearInterval(this.timerHandle);
+
+      this.timerStart = 30;
+      this.timerHandle = setInterval(() => {
+        if (this.timerStart > 0) {
+          this.timerStart -= 1;
+        } else {
+          clearInterval(this.timerHandle);
+
+          //Game Over
+          console.log("Game Over");
+        }
+      }, 1000);
+    },
+    resetTimer() {
+      //Stop the Clock
+      clearInterval(this.timerHandle);
+      this.timerStart = 30;
     },
     getRandomInt(min, max) {
       min = Math.ceil(min);

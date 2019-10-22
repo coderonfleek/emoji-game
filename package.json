@@ -12,7 +12,8 @@
     "bootstrap": "^4.3.1",
     "core-js": "^2.6.10",
     "emoji.json": "^12.1.0",
-    "vue": "^2.6.10"
+    "vue": "^2.6.10",
+    "vuex": "^3.1.1"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "^3.0.1",
