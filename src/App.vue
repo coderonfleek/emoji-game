@@ -1,12 +1,282 @@
 <template>
   <div id="app">
-    <div id="nav">
-      <router-link to="/">Home</router-link> |
-      <router-link to="/about">About</router-link>
+    <div class="container">
+      <div class="row">
+        <div class="col-md-4">
+          <select class="form-control" v-model="selectedSource" @change="getStream()">
+            <option
+              v-for="source in videoSources"
+              :key="source.id"
+              :value="source.id"
+            >{{source.text}}</option>
+          </select>
+        </div>
+        <div class="col-md-8">
+          <div class="row">
+            <div class="col-md-4">Countdown : {{timerStart}}</div>
+            <div class="col-md-4">Total Score: {{totalScore}}</div>
+            <div class="col-md-4">Fikayo Adepoju</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row mt-5">
+        <div class="col-md-6">
+          <button class="btn btn-success" @click="playGame()">Play</button>
+          &nbsp;
+          <button class="btn btn-warning" @click="skipEmoji()">Skip Emoji</button>
+        </div>
+      </div>
+      <!-- row -->
+      <div class="row mt-5">
+        <div class="col-md-6">
+          <div>
+            <video autoplay id="video1" ref="video1"></video>
+            <canvas style="display:none;" id="canvas1" ref="canvas1"></canvas>
+          </div>
+
+          <div>
+            <button class="btn btn-primary" @click="captureImage()">Capture Image</button>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="row">
+            <div class="col-md-6">
+              <img
+                id="usercapture"
+                ref="usercapture"
+                src="http://via.placeholder.com/150x150"
+                width="200"
+                height="200"
+              />
+
+              <div class="mt-2">
+                <button class="btn btn-success" @click="predictImage()">Predict Image</button>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <p class="currentEmoji">{{currentEmoji.char}}</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     <router-view/>
   </div>
 </template>
+
+<script>
+import "bootstrap/dist/css/bootstrap.css";
+import axios from "axios";
+import emojis from "emoji.json";
+
+export default {
+  name: "app",
+  data() {
+    return {
+      videoSources: [],
+      selectedSource: null,
+      totalScore: 0,
+      currentEmoji: {},
+      imageURL: null,
+      uploadingImage: false,
+      gCloudVisionUrl:
+        "https://vision.googleapis.com/v1/images:annotate?key=AIzaSyCk-S9i5xMbmiEAIVPtSC8VlyecH1rY8Uo",
+      timerHandle: null,
+      timerStart: 30,
+      pointsIncrement: 10,
+      pointsDecrement: 5
+    };
+  },
+  mounted() {
+    console.log(this.gameEmojis);
+    navigator.mediaDevices
+      .enumerateDevices()
+      .then(this.gotDevices)
+      .catch(this.handleError);
+  },
+  computed: {
+    gameEmojis() {
+      return emojis.filter(emoji => {
+        return (
+          emoji.category.includes("Objects") &&
+          emoji.char.charCodeAt(0) != 55358
+        );
+      });
+    }
+  },
+  methods: {
+    gotDevices(deviceInfos) {
+      for (var i = 0; i !== deviceInfos.length; ++i) {
+        var deviceInfo = deviceInfos[i];
+
+        if (deviceInfo.kind === "videoinput") {
+          let option = {};
+
+          option.id = deviceInfo.deviceId;
+          option.text = deviceInfo.label || "camera " + (i - 1);
+
+          this.videoSources.push(option);
+        }
+      }
+
+      console.log(this.videoSources);
+    },
+    getStream() {
+      if (window.stream) {
+        window.stream.getTracks().forEach(function(track) {
+          track.stop();
+        });
+      }
+
+      console.log(this.selectedSource);
+
+      var constraints = {
+        video: {
+          deviceId: { exact: this.selectedSource }
+        }
+      };
+
+      navigator.mediaDevices
+        .getUserMedia(constraints)
+        .then(this.gotStream)
+        .catch(this.handleError);
+    },
+    gotStream(stream) {
+      //window.stream = stream; // make stream available to console
+      console.log(this.$refs.video1.srcObject);
+      this.$refs.video1.srcObject = stream;
+    },
+    handleError(error) {
+      console.error("Error: ", error);
+    },
+    playGame() {
+      //Get Random Emoji
+      this.switchEmoji();
+
+      //Start timer countdown
+      this.setTimer();
+    },
+    skipEmoji() {
+      this.switchEmoji();
+
+      this.imageURL = null;
+    },
+    captureImage() {
+      let canvas = this.$refs.canvas1;
+      let videoElement = this.$refs.video1;
+      canvas.width = videoElement.videoWidth;
+      canvas.height = videoElement.videoHeight;
+      canvas.getContext("2d").drawImage(videoElement, 0, 0);
+
+      let imgElement = this.$refs.usercapture;
+
+      // Get image
+      let image = canvas.toDataURL("image/png");
+      console.log(image);
+
+      //Trim signature to get pure image data
+      this.imageURL = image.replace(/^data:image\/(png|jpg);base64,/, "");
+
+      //Set the image element to the data url
+      imgElement.src = image;
+    },
+    async predictImage() {
+      if (this.imageURL) {
+        let requestBody = {
+          requests: [
+            {
+              image: {
+                content: this.imageURL
+              },
+              features: [
+                {
+                  type: "LABEL_DETECTION",
+                  maxResults: 10
+                }
+              ]
+            }
+          ]
+        };
+        try {
+          let predictionResults = await axios.post(
+            this.gCloudVisionUrl,
+            requestBody
+          );
+
+          let predictionResponse = predictionResults.data.responses[0];
+
+          console.log(predictionResponse);
+
+          let annotations = predictionResponse.labelAnnotations;
+
+          let allLabelDescriptions = annotations.map(annotation =>
+            annotation.description.toLowerCase()
+          );
+
+          console.log(allLabelDescriptions);
+
+          //Check if any of the prediction labels match the current emoji
+
+          let match = false;
+
+          allLabelDescriptions.forEach(description => {
+            if (this.currentEmoji.name.includes(description)) {
+              match = true;
+            }
+          });
+
+          console.log(this.currentEmoji);
+
+          if (match == true) {
+            this.totalScore += this.pointsIncrement;
+
+            this.resetTimer();
+
+            alert("Correct Answer");
+          } else {
+            alert("Wrong Answer");
+          }
+        } catch (error) {
+          console.log(error);
+        }
+      } else {
+        alert("You are yet to capture an image");
+      }
+    },
+    switchEmoji() {
+      let emojiIndex = this.getRandomInt(0, this.gameEmojis.length);
+      this.currentEmoji = this.gameEmojis[emojiIndex];
+      console.log(this.currentEmoji);
+    },
+    setTimer() {
+      clearInterval(this.timerHandle);
+
+      this.timerStart = 30;
+      this.timerHandle = setInterval(() => {
+        if (this.timerStart > 0) {
+          this.timerStart -= 1;
+        } else {
+          clearInterval(this.timerHandle);
+
+          //Game Over
+          console.log("Game Over");
+        }
+      }, 1000);
+    },
+    resetTimer() {
+      //Stop the Clock
+      clearInterval(this.timerHandle);
+      this.timerStart = 30;
+    },
+    getRandomInt(min, max) {
+      min = Math.ceil(min);
+      max = Math.floor(max);
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+  }
+};
+</script>
 
 <style scoped>
 #video1 {
