@@ -39,9 +39,14 @@
             <h1 class="display-4">Play the Emoji Game!</h1>
             <p class="lead">Instructions</p>
             <ul>
-              <li></li>
-              <li></li>
-              <li></li>
+              <li>Login to play</li>
+              <li>Select a camera feed of your choice from the drop down</li>
+              <li>Click “Play” to start a new round</li>
+              <li>Capture the correct image that matches the emoji displayed</li>
+              <li>You can skip an emoji during a round if you can’t find the corresponding object around you to capture</li>
+              <li>Click ‘Predict Image’ to compare your captured image against the emoji</li>
+              <li>You gain 10 points for a correct prediction and loose 5 points for a wrong prediction</li>
+              <li>If the clock runs out, its Game Over!</li>
             </ul>
             <a
               class="btn btn-primary btn-lg mr-auto ml-auto"
