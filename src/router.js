@@ -8,7 +8,7 @@ Vue.use(VueRouter);
 const routes = [{ path: "/", component: App }];
 
 const router = new VueRouter({
-  routes // short for `routes: routes`
+  routes
 });
 
 export default router;
