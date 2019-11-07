@@ -13,7 +13,6 @@ yarn-error.log*
 yarn.lock
 package-lock.json
 auth_config.json
-
 # Editor directories and files
 .idea
 .vscode

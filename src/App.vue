@@ -1,6 +1,61 @@
 <template>
-  <div id="app">
-    <div class="container">
+  <div id="app" v-if="!$auth.loading">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <a class="navbar-brand" href="#">The Emoji Game</a>
+      <button
+        class="navbar-toggler"
+        type="button"
+        data-toggle="collapse"
+        data-target="#navbarText"
+        aria-controls="navbarText"
+        aria-expanded="false"
+        aria-label="Toggle navigation"
+      >
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarText">
+        <div class="navbar-nav mr-auto user-details">
+          <span v-if="$auth.isAuthenticated">{{ $auth.user.name }} ({{ $auth.user.email }})</span>
+          <span v-else>&nbsp;</span>
+        </div>
+
+        <span class="navbar-text">
+          <ul class="navbar-nav float-right">
+            <li class="nav-item" v-if="!$auth.isAuthenticated">
+              <a class="nav-link" href="#" @click="login()">Log In</a>
+            </li>
+            <li class="nav-item" v-if="$auth.isAuthenticated">
+              <a class="nav-link" href="#" @click="logout()">Log Out</a>
+            </li>
+          </ul>
+        </span>
+      </div>
+    </nav>
+
+    <div class="container mt-5" v-if="!$auth.isAuthenticated">
+      <div class="row">
+        <div class="col-md-8 offset-md-2">
+          <div class="jumbotron">
+            <h1 class="display-4">Play the Emoji Game!</h1>
+            <p class="lead">Instructions</p>
+            <ul>
+              <li></li>
+              <li></li>
+              <li></li>
+            </ul>
+            <a
+              class="btn btn-primary btn-lg mr-auto ml-auto"
+              href="#"
+              role="button"
+              @click="login()"
+            >Log In to Play</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- The emoji game -->
+    <div class="container mt-5" v-else>
       <div class="row">
         <div class="col-md-4">
           <select class="form-control" v-model="selectedSource" @change="getStream()">
@@ -15,7 +70,6 @@
           <div class="row">
             <div class="col-md-4">Countdown : {{timerStart}}</div>
             <div class="col-md-4">Total Score: {{totalScore}}</div>
-            <div class="col-md-4">Fikayo Adepoju</div>
           </div>
         </div>
       </div>
@@ -60,6 +114,26 @@
           </div>
         </div>
       </div>
+
+      <!-- Game Over Modal -->
+
+      <div class="modal show" id="myModal" role="dialog">
+        <div class="modal-dialog">
+          <!-- Modal content-->
+          <div class="modal-content">
+            <div class="modal-header">
+              <button type="button" class="close" data-dismiss="modal">&times;</button>
+              <h4 class="modal-title">Modal Header</h4>
+            </div>
+            <div class="modal-body">
+              <p>Some text in the modal.</p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     <router-view/>
   </div>
@@ -94,6 +168,14 @@ export default {
       .enumerateDevices()
       .then(this.gotDevices)
       .catch(this.handleError);
+
+    /* this.$refs.gameOverModal.modal({
+      show: true
+    }); */
+
+    //$("#myModal").modal("show");
+
+    console.log(this.$refs.gameOverModal);
   },
   computed: {
     gameEmojis() {
@@ -106,6 +188,16 @@ export default {
     }
   },
   methods: {
+    // Log the user in
+    login() {
+      this.$auth.loginWithRedirect();
+    },
+    // Log the user out
+    logout() {
+      this.$auth.logout({
+        returnTo: window.location.origin
+      });
+    },
     gotDevices(deviceInfos) {
       for (var i = 0; i !== deviceInfos.length; ++i) {
         var deviceInfo = deviceInfos[i];
@@ -287,5 +379,9 @@ export default {
 
 .currentEmoji {
   font-size: 120px;
+}
+
+.user-details {
+  color: white;
 }
 </style>
