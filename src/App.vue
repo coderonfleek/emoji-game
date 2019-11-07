@@ -113,7 +113,11 @@
               />
 
               <div class="mt-2">
-                <button class="btn btn-success" @click="predictImage()">Predict Image</button>
+                <button
+                  class="btn btn-success"
+                  @click="predictImage()"
+                  :disabled="predictingImage"
+                >{{predictingImage? 'Please Wait...' : 'Predict Image'}}</button>
               </div>
             </div>
             <div class="col-md-6">
@@ -150,7 +154,7 @@ export default {
       totalScore: 0,
       currentEmoji: {},
       imageURL: null,
-      uploadingImage: false,
+      predictingImage: false,
       gCloudVisionUrl:
         "https://vision.googleapis.com/v1/images:annotate?key=AIzaSyCk-S9i5xMbmiEAIVPtSC8VlyecH1rY8Uo",
       timerHandle: null,
@@ -292,6 +296,8 @@ export default {
           ]
         };
         try {
+          this.predictingImage = true;
+
           let predictionResults = await axios.post(
             this.gCloudVisionUrl,
             requestBody
@@ -331,11 +337,15 @@ export default {
               `Congratulations, you have gained ${this.pointsIncrement} points, your total is now ${this.totalScore}`
             );
           } else {
+            this.totalScore -= this.pointsDecrement;
+
             this.showModal(
               "Wrong Answer",
-              `The answer you gave was incorrect, you have lost ${this.pointsDecrement} points, your total is now ${this.totalScore}`
+              `The answer you gave was incorrect, Your captured image suggested the following (${allLabelDescriptions}). You have lost ${this.pointsDecrement} points, your total is now ${this.totalScore}`
             );
           }
+
+          this.predictingImage = false;
         } catch (error) {
           this.handleError(error);
         }
