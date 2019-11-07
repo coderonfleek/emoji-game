@@ -74,11 +74,19 @@
         </div>
       </div>
 
-      <div class="row mt-5">
+      <div class="row mt-5" v-if="gameOver">
+        <button class="btn btn-primary" @click="startNewGame()">Start New Game</button>
+      </div>
+
+      <div class="row mt-5" v-else>
         <div class="col-md-6">
-          <button class="btn btn-success" @click="playGame()">Play</button>
+          <button class="btn btn-success" :disabled="inPlay" @click="playGame()">Play</button>
           &nbsp;
-          <button class="btn btn-warning" @click="skipEmoji()">Skip Emoji</button>
+          <button
+            class="btn btn-warning"
+            :disabled="!inPlay"
+            @click="skipEmoji()"
+          >Skip Emoji</button>
         </div>
       </div>
       <!-- row -->
@@ -115,27 +123,15 @@
         </div>
       </div>
 
-      <!-- Game Over Modal -->
+      <!-- Modal -->
 
-      <div class="modal show" id="myModal" role="dialog">
-        <div class="modal-dialog">
-          <!-- Modal content-->
-          <div class="modal-content">
-            <div class="modal-header">
-              <button type="button" class="close" data-dismiss="modal">&times;</button>
-              <h4 class="modal-title">Modal Header</h4>
-            </div>
-            <div class="modal-body">
-              <p>Some text in the modal.</p>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <modal
+        v-if="modal.show"
+        @close="modal.show = false"
+        :header="modal.header"
+        :content="modal.content"
+      ></modal>
     </div>
-    <router-view/>
   </div>
 </template>
 
@@ -143,6 +139,7 @@
 import "bootstrap/dist/css/bootstrap.css";
 import axios from "axios";
 import emojis from "emoji.json";
+import modal from "./components/modal";
 
 export default {
   name: "app",
@@ -157,10 +154,20 @@ export default {
       gCloudVisionUrl:
         "https://vision.googleapis.com/v1/images:annotate?key=AIzaSyCk-S9i5xMbmiEAIVPtSC8VlyecH1rY8Uo",
       timerHandle: null,
-      timerStart: 30,
+      timerStart: 60,
       pointsIncrement: 10,
-      pointsDecrement: 5
+      pointsDecrement: 5,
+      inPlay: false,
+      gameOver: false,
+      modal: {
+        show: false,
+        header: "My header",
+        content: "My Content"
+      }
     };
+  },
+  components: {
+    modal
   },
   mounted() {
     console.log(this.gameEmojis);
@@ -168,14 +175,6 @@ export default {
       .enumerateDevices()
       .then(this.gotDevices)
       .catch(this.handleError);
-
-    /* this.$refs.gameOverModal.modal({
-      show: true
-    }); */
-
-    //$("#myModal").modal("show");
-
-    console.log(this.$refs.gameOverModal);
   },
   computed: {
     gameEmojis() {
@@ -245,6 +244,8 @@ export default {
     playGame() {
       //Get Random Emoji
       this.switchEmoji();
+
+      this.inPlay = true;
 
       //Start timer countdown
       this.setTimer();
@@ -325,15 +326,21 @@ export default {
 
             this.resetTimer();
 
-            alert("Correct Answer");
+            this.showModal(
+              "Correct Answer",
+              `Congratulations, you have gained ${this.pointsIncrement} points, your total is now ${this.totalScore}`
+            );
           } else {
-            alert("Wrong Answer");
+            this.showModal(
+              "Wrong Answer",
+              `The answer you gave was incorrect, you have lost ${this.pointsDecrement} points, your total is now ${this.totalScore}`
+            );
           }
         } catch (error) {
-          console.log(error);
+          this.handleError(error);
         }
       } else {
-        alert("You are yet to capture an image");
+        this.showModal("Error", `You are yet to capture an image`);
       }
     },
     switchEmoji() {
@@ -342,24 +349,44 @@ export default {
       console.log(this.currentEmoji);
     },
     setTimer() {
-      clearInterval(this.timerHandle);
-
-      this.timerStart = 30;
+      this.resetTimer();
       this.timerHandle = setInterval(() => {
         if (this.timerStart > 0) {
           this.timerStart -= 1;
         } else {
-          clearInterval(this.timerHandle);
-
           //Game Over
-          console.log("Game Over");
+          this.endGame();
         }
       }, 1000);
     },
     resetTimer() {
       //Stop the Clock
       clearInterval(this.timerHandle);
-      this.timerStart = 30;
+      this.timerStart = 60;
+    },
+    endGame() {
+      clearInterval(this.timerHandle);
+
+      this.inPlay = false;
+      this.gameOver = true;
+
+      this.showModal(
+        "Game Over",
+        `You could not complete the task before the time ran out. Your total score is ${this.totalScore}`
+      );
+    },
+    startNewGame() {
+      this.imageURL = null;
+      this.totalScore = 0;
+      this.gameOver = false;
+      this.currentEmoji = {};
+    },
+    showModal(title, body) {
+      this.modal = {
+        show: true,
+        header: title,
+        content: body
+      };
     },
     getRandomInt(min, max) {
       min = Math.ceil(min);
